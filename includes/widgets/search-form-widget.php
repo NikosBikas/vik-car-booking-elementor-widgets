@@ -162,8 +162,10 @@ class VRC_Search_Form_Widget extends VRC_Base_Widget {
         // If we don't want to show results, filter to show only the search form
         if ($settings['show_results'] !== 'yes') {
             $output = $this->filter_to_search_form_only($output);
-            // Fix the form action to point to a search results page
+            // Fix the form action to stay on current page
             $output = $this->fix_form_action_for_search_results($output);
+            // Ensure proper form parameters to prevent redirects
+            $output = $this->fix_form_parameters($output);
         }
         
         // Add custom CSS if provided
@@ -194,24 +196,54 @@ class VRC_Search_Form_Widget extends VRC_Base_Widget {
     }
     
     /**
-     * Fix the form action to point to a search results page
+     * Fix the form action to stay on the current page
      */
     private function fix_form_action_for_search_results($output) {
-        // Get the search results page URL
-        $search_results_url = $this->get_search_results_page_url();
+        // Keep the form on the current page to prevent redirects
+        $current_page_url = get_permalink();
         
-        if ($search_results_url) {
-            // Replace the form action URL
+        if ($current_page_url) {
+            // Replace the form action URL to stay on current page
             $output = preg_replace(
                 '/<form([^>]*)\s+action=["\'][^"\']*["\']([^>]*)>/i',
-                '<form$1 action="' . esc_url($search_results_url) . '"$2>',
+                '<form$1 action="' . esc_url($current_page_url) . '"$2>',
                 $output
             );
             
             // Also handle forms without action attribute
             $output = preg_replace(
                 '/<form([^>]*)(?!\s+action=)([^>]*)>/i',
-                '<form$1 action="' . esc_url($search_results_url) . '"$2>',
+                '<form$1 action="' . esc_url($current_page_url) . '"$2>',
+                $output
+            );
+        }
+        
+        return $output;
+    }
+    
+    /**
+     * Fix form parameters to prevent redirects
+     */
+    private function fix_form_parameters($output) {
+        // Ensure the form has the correct VikRentCar parameters
+        // Add option=com_vikrentcar and task=search to prevent redirects
+        
+        // Check if the form already has the option parameter
+        if (strpos($output, 'name="option"') === false) {
+            // Add the option parameter after the form tag
+            $output = preg_replace(
+                '/(<form[^>]*>)/i',
+                '$1<input type="hidden" name="option" value="com_vikrentcar"/>',
+                $output
+            );
+        }
+        
+        // Check if the form already has the task parameter
+        if (strpos($output, 'name="task"') === false) {
+            // Add the task parameter
+            $output = preg_replace(
+                '/(<form[^>]*>)/i',
+                '$1<input type="hidden" name="task" value="search"/>',
                 $output
             );
         }
